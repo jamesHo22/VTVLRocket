@@ -1,0 +1,164 @@
+function rocket
+clear all
+close all
+
+% Define system parameters
+%
+g = 9.81;                   % gravitational acceleration in m/s^2
+mass = 5;                   % mass in (kg)
+L = 10;                 % length of rocket (m)
+thrust = mass*g*1.1;              % thrust of rocket (N)
+I = (1/12)*mass*L^2;    % mass moment of inertia (kg m^2);
+%
+% Specify magnitude and angle of initial velocity vector 
+theta = 0;     % initial angle (degrees) of thrust vector
+
+% Fixed points
+% thrust = mass*g
+% z1,z2,z3,z4,z5,z6,theta = 0
+% (-1/mass)*(thrust*cos(theta + z5))
+F0 = mass*g;
+angled = 0;
+df2dz5 = (-1/mass)*(F0*cos(angled));
+df4dz5 = (-1/mass)*(F0*sin(angled));
+
+df2du1 = (-1/mass)*sin(angled);
+df2du2 = (-1/mass)*(F0*cos(angled));
+df4du1 = (1/mass)*cos(angled);
+df4du2 = (-1/mass)*F0*sin(angled);
+df6du1 = (-L*sin(angled))/(2*I);
+df6du2 = (-L*cos(angled))/(2*I);
+
+% Linearized A matrix. Is not a good representation because eigs of A are
+% zero. 
+A = [0 1 0 0 0 0; 
+     0 0 0 0 df2dz5 0;
+     0 0 0 1 0 0;
+     0 0 0 0 df4dz5 0;
+     0 0 0 0 0 1;
+     0 0 0 0 0 0];
+ 
+% Linearized B matrix
+B = [0 0;
+     df2du1 df2du2;
+     0 0;
+     df4du1 df4du2;
+     0 0;
+     df6du1 df6du2];
+ 
+% Check how controllable the system is
+rank(ctrb(A,B)) % if the rank is 6, it is fully controllable
+
+% eigval = [-1.5; -5.6; -4.7; -3.8; -2.6; -1.7];
+% K = place(A, B, eigval);
+
+% Using LQR
+Q = [100 0 0 0 0 0;
+     0 1 0 0 0 0;
+     0 0 10 0 0 0;
+     0 0 0 10 0 0;
+     0 0 0 0 1 0;
+     0 0 0 0 0 1];
+
+R = [10 0;
+     0 1]; % Penalty for force/energy
+K = lqr(A, B, Q, R);
+
+
+% Specify initial velocity. Inital displacements are taken to be zero. 
+z1_0 = 50;       % init x pos
+z2_0 = 0;		% init x vel
+z3_0 = 100;    	% init y pos 				
+z4_0 = 0;		% init y vel
+z5_0 = 0;    	% init phi pos 				
+z6_0 = 0;		% init phi dot
+% put IC's into a single variable 
+Z_0 = [z1_0, z2_0, z3_0, z4_0, z5_0, z6_0];
+
+% Define simulation parameters
+T_span = [0: 0.05: 30];  % time range for simulation with specified time step
+% integration will stop at end of time span or when projectile hits ground
+% (as defined by events)
+
+options = odeset('Events', @event_stop);
+[t, zout] = ode45(@projectile_fun, T_span, Z_0, options);
+
+assignin('base','t',t);
+assignin('base','zout',zout);
+t(end)  %show end time
+% zout
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% % Plots
+figure(1)
+
+for time=1:int16(length(t)/(20*max(t))):length(t)
+    rocketTop = [zout(time, 1) + (L/2)*sin(-zout(time, 5)), zout(time, 3) + (L/2)*cos(-zout(time, 5))];
+    rocketBot = [zout(time, 1) - (L/2)*sin(-zout(time, 5)), zout(time, 3) - (L/2)*cos(-zout(time, 5))];
+%     Plots the ground
+    plot([-10 10],[0 0],'k','LineWidth',2), hold on
+%     plots the rocket
+    scatter([rocketBot(1),rocketTop(1)], [rocketBot(2),rocketTop(2)],[],[1,0,0; 0,0,0]); 
+    plot([rocketBot(1),rocketTop(1)], [rocketBot(2),rocketTop(2)],'k', 'LineWidth', 2); 
+    
+%     Plot thrust vector
+%     u = K*zout(time,:)';
+%     u1 = u(1);
+%     u2 = u(2);
+%     dp = u1*[sin(-zout(time, 5)-u2), cos(-zout(time, 5)-u2)];
+%     quiver(rocketBot(1),rocketBot(2),dp(1),dp(2))
+%     set some window params
+    axis([-2 2 -2 120]); axis equal
+    grid on
+    set(gcf,'Position',[100 100 1000 400])
+    drawnow limitrate, hold off
+    
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% function: equations of motion in first order form
+function dzdt = projectile_fun(T,Z)
+
+
+u = K*Z;
+u1 = u(1);
+u2 = u(2);
+% solve simultaneously for x and y,  and dx/dt and dy/dt
+% Z(1)= z1=x, Z(2)= z2=dx/dt, Z(3)= z3=y, Z(4)= z4=dy/dt
+dz1dt = Z(2); 
+dz2dt = -(1/mass)*(thrust*sin(theta+Z(5)));
+dz3dt = Z(4);
+dz4dt = (1/mass)*(thrust*cos(theta+Z(5))) - g;
+dz5dt = Z(6);
+dz6dt = (-L*thrust*sin(theta))/(2*I);
+%
+if T < 5
+    goal = Z_0';
+    
+elseif (5 <= T) && (T < 10)
+    goal = [0; 0; Z_0(3); 0; 0; 0];
+    
+else
+    goal = [0; 0; L/2; 0; 0; 0];
+end
+
+
+dzdt = [dz1dt;dz2dt;dz3dt;dz4dt;dz5dt;dz6dt] - B*K*(Z-goal);
+%
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function [eventvalue,stopthecalc,eventdirection] = event_stop(T,Z)
+     
+ % stop when Z(3)= z3= y = 0 (mass hits the ground in y-dir)
+        eventvalue      =  Z(3);    %  ‘Events’ are detected when eventvalue=0
+        stopthecalc     =  1;       %  Stop if event occurs
+        eventdirection  = -1;       %  Detect only events with dydt<0
+end
+      
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+end
