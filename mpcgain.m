@@ -29,20 +29,22 @@ end
 v = h*B_e;
 Phi = zeros(Np, Nc);
 Phi(:, 1) = v;
+
 for i=2:Nc
     Phi(:, i) = [zeros(i-1, 1); v(1:Np-i+1, 1)]; % Toeplotz matrix
 end
 
+% Assumes r(ki) = 1. Set-point is equal to one
+% Assumes x(ki) = [0.1 0.2]'
 
-
-BarRs = ones(Np, 1);
+BarRs = ones(Np, 1)*1; % set-point is one. [1 1 ... 1]*r(ki)
 Phi_Phi = Phi'*Phi;
 Phi_F = Phi'*F;
 Phi_R = Phi'*BarRs;
-
-% Calculate the optimal control signal given rw
-rw = 0;
-inv(Phi_Phi + rw*eye(4,4))*(Phi_R - Phi_F*[0.1 0.2]')
+% 
+% % Calculate the optimal control signal given rw
+% rw = 0;
+% inv(Phi_Phi + rw*eye(4,4))*(Phi_R - Phi_F*[0.1 0.2]')
 
 
 

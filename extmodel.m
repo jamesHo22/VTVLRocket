@@ -14,6 +14,7 @@ Delta_t = 1;
 [n1, n_in] = size(Bd);
 A_e = eye(n1+m1, n1+m1);
 A_e(1:n1, 1:n1) = Ad;
+A_e(n1+1:n1+m1, 1:n1) = Cd*Ad;
 B_e = zeros(n1+m1, n_in);
 Be(1:n1, :) = Bd;
 Be(n1+1:n1+m1, :) = Cd*Bd;
