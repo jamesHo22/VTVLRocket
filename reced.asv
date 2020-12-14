@@ -20,13 +20,11 @@ xm = [0;0]; % inital state vairable for the plant
 Xf = zeros(n,1); % inital state feedback variable
 N_sim = 100;
 
-% r = zeros(N_sim,1); % setpoint
-% r((N_sim/2):end) = 1; % the second half is ones
-r = ones(N_sim,1); % setpoint
-
-u = 0; % u(k-1) = 0 the initial control signal
-y = 0; % inital output
-rw = 0.1;
+r = zeros(N_sim,1); % 
+r((N_sim/2):end) = 1;
+u = 0; % u(k-1) = 0 
+y = 0;
+rw = 10;
 
 for kk=1:N_sim
     DeltaU = inv(Phi_Phi + rw*eye(Nc, Nc))*(Phi_R*r(kk)-Phi_F*Xf);

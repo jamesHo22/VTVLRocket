@@ -1,4 +1,4 @@
-function [Phi_Phi, Phi_F, Phi_R, A_e, B_e, C_e] = mimompcgain(Ad, Bd, Cd, Nc, Np, rs)
+function [Phi, BarRs, Phi_Phi, Phi_F, Phi_R, A_e, B_e, C_e] = mimompcgain(Ad, Bd, Cd, Nc, Np, rs)
 % rs will eventually be the tracking signal
 
 % compute the F and Phi matricies
@@ -42,7 +42,8 @@ end
 
 % optimizing (look at equation 1.16)
 % Define setpoint signal
-BarRs = ones(r_v,m1).*rs;
+% BarRs = ones(r_v,m1).*rs;
+BarRs = ones(r_v,m1)
 Phi_Phi = Phi'*Phi;
 Phi_F = Phi'*F;
 Phi_R = Phi'*BarRs;

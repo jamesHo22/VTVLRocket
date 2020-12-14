@@ -1,6 +1,7 @@
 % MPC control of thrust vectoring rocket
 % We first define our rocket state space model and other parameters
-clear
+clear all
+close all
 
 g = 9.81;                   % gravitational acceleration in m/s^2
 mass = 5;                   % mass in (kg)
@@ -52,9 +53,6 @@ Cc = eye(6);
 % receding horizon control. 
 
 Dc = zeros(6,2);
- 
-% Check how controllable the system is
-% rank(ctrb(A,B)) % if the rank is 6, it is fully controllable
 
 % The next step is to make the system discrete
 % Covert the continuous model to a discrete model by sampling every 0.5
@@ -62,21 +60,103 @@ Dc = zeros(6,2);
 Delta_t = 0.5;
 [Ad, Bd, Cd, Dd] = c2dm(Ac, Bc, Cc, Dc, Delta_t);
 
-% define control and prediction horizons
-% define tracking signal. in this case, get to zero
-Nc = 5;
-Np = 10;
+% Define some useful dimensions
+% [m1, n1] = size(Cd);
+% [n1, n_in] = size(Bd);
+
+Nc = 1; % control horizon
+Np = 60; % prediction horizon
+% Define setpoint signal
+% In this case we set it to zero
 rs = [0,0,0,0,0,0];
-% cost of actuation
-rw = 0;
 
 % Once we have the augemented state space model, we can begin building the MPC
 % controller
 
-[Phi_Phi, Phi_F, Phi_R, A_e, B_e, C_e] = mimompcgain(Ad, Bd, Cd, Nc, Np, rs);
+% Here, we comupute the gain matricies for the augmented state space model
+% [Phi, Phi_Phi, Phi_F, A_e, B_e, C_e] = mimompcgain(Ad, Bd, Cd, Nc, Np);
 
-% define initial state vector
-x_0 = [1;1; 1;1; 1;1; 1;1; 1;1; 1;1];
-x_0_test = []
-deltaU = (inv(Phi_Phi)+rw*eye(size(Phi_Phi)))\(Phi_R - Phi_F*x_0);
+% SISO Test case for debugging
+ac = [1 1; 0 1];
+bc = [0.5; 1];
+cc = [1 0];
 
+% using mimompcgain to calculate gains
+% [Phi_Phi, Phi_F, Phi_R, A_e, B_e, C_e] = mimompcgain(ac, bc, cc, Nc, Np, 1); % SISO
+[Phi_Phi, Phi_F, Phi_R, A_e, B_e, C_e] = mimompcgain(Ad, Bd, Cd, Nc, Np, 0); % MIMO
+[n, n_in] = size(B_e);
+
+xm = [20;0;50;0;0;0]; % inital state vairable for the plant MIMO
+% xm = [0;0]; % inital state vairable for the plant SISO
+Xf = zeros(n,1); % inital state feedback variable
+t_end = 300;
+N_sim = t_end/Delta_t; % define number of time steps to run
+
+
+% r = zeros(N_sim,1); % setpoint
+% r((N_sim/2):end) = 1; % the second half is ones
+r = ones(N_sim,1)*0; % setpoint
+
+u = 0; % u(k-1) = 0 the initial control signal
+y = [20;0;50;0;0;0]; % inital output MIMO
+% y = 0; % inital output SISO
+rw = 1;
+
+for kk=1:N_sim
+    DeltaU = (Phi_Phi + rw*eye(size(Phi_Phi)))\(Phi_R-Phi_F*Xf);
+    deltau = DeltaU(1:n_in,1);
+    u = u+deltau;
+    % Save the control output and state 
+    u1(:, kk) = u;
+    y1(:, kk) = y;
+    xm_old = xm;
+%     % compute state
+%     xm = ac*xm+bc*u; %SISO
+    xm = Ad*xm+Bd*u; %MIMO
+%     y = cc*xm; %siso
+    y = Cd*xm; %mimo
+    Xf = [xm-xm_old;y];
+end
+
+% plot(y1(1,:), y1(3,:), 'o')
+figure 
+subplot(411)
+plot(y1(1,:), 'o')
+legend('X position')
+subplot(412)
+plot(y1(3,:), 'o')
+legend('Y position')
+subplot(413)
+plot(u1(1,:), 'o')
+legend('thrust')
+subplot(414)
+plot(u1(2,:), 'o')
+legend('angle')
+xlabel('sampling instant')
+
+t = [0:De]
+% % % Plots
+figure(1)
+zout = y1';
+for time=1:int16(length(t)/(20*max(t))):length(t)
+    rocketTop = [zout(time, 1) + (L/2)*sin(-zout(time, 5)), zout(time, 3) + (L/2)*cos(-zout(time, 5))];
+    rocketBot = [zout(time, 1) - (L/2)*sin(-zout(time, 5)), zout(time, 3) - (L/2)*cos(-zout(time, 5))];
+%     Plots the ground
+    plot([-10 10],[0 0],'k','LineWidth',2), hold on
+%     plots the rocket
+    scatter([rocketBot(1),rocketTop(1)], [rocketBot(2),rocketTop(2)],[],[1,0,0; 0,0,0]); 
+    plot([rocketBot(1),rocketTop(1)], [rocketBot(2),rocketTop(2)],'k', 'LineWidth', 2); 
+    
+%     Plot thrust vector
+%     u = K*zout(time,:)';
+%     u1 = u(1);
+%     u2 = u(2);
+%     dp = u1*[sin(-zout(time, 5)-u2), cos(-zout(time, 5)-u2)];
+%     quiver(rocketBot(1),rocketBot(2),dp(1),dp(2))
+%     set some window params
+    axis([-2 2 -2 120]); axis equal
+    grid on
+    set(gcf,'Position',[100 100 1000 400])
+    drawnow limitrate, hold off
+    
+end
