@@ -3,8 +3,7 @@ function [F, Phi, BarRs, Phi_Phi, Phi_F, Phi_R, A_e, B_e, C_e] = mimompcgain(Ad,
 % Bd: discrete B matrix
 % Cd: discrete C matrix
 % Nc: control horizon
-% Np: prediction horizon
-% rs: setpoint
+% N
 
 
 % compute the F and Phi matricies
@@ -37,7 +36,7 @@ end
 v = h*B_e;
 [r_v, c_v] = size(v);
 
-% create Phi matrix, also known as the Toeplotz matrix
+% create Phi matrix
 counter = 1;
 Phi = zeros(r_v, c_v*(Nc));
 Phi(:, 1:c_v) = v;
@@ -46,7 +45,9 @@ for i = c_v+1:c_v:(Nc)*c_v
     counter = counter + 1;
 end
 
-% Define the matricies needed to compute the optimal control inputs
+% optimizing (look at equation 1.16)
+% Define setpoint signal
+% BarRs = ones(r_v,m1).*rs;
 BarRs = ones(r_v,m1);
 Phi_Phi = Phi'*Phi;
 Phi_F = Phi'*F;
