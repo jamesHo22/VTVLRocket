@@ -1,5 +1,10 @@
 % MPC control of thrust vectoring rocket
 % We first define our rocket state space model and other parameters
+% TODOs:
+% 1. simulate the nonlinear system and use the linear system to control it
+% 2. get MPC to track a reference
+% 3. constrained MPC
+
 clear all
 close all
 
@@ -62,16 +67,6 @@ Dc = zeros(6,2);
 Delta_t = 0.5;
 [Ad, Bd, Cd, Dd] = c2dm(Ac, Bc, Cc, Dc, Delta_t);
 
-% Define some useful dimensions
-% [m1, n1] = size(Cd);
-% [n1, n_in] = size(Bd);
-
-Nc = 10; % control horizon
-Np = 60; % prediction horizon
-
-% Define setpoint signal. We want the rocket to go to this pose
-rs = [0,0,0,0,0,0];
-
 % Once we have the augemented state space model, we can begin building the MPC
 % controller
 
@@ -83,14 +78,18 @@ rs = [0,0,0,0,0,0];
 % y = 0; % inital output SISO
 % [Phi_Phi, Phi_F, Phi_R, A_e, B_e, C_e] = mimompcgain(ac, bc, cc, Nc, Np, 1); % SISO
 
+Nc = 10; % control horizon
+Np = 60; % prediction horizon
+rs = [0,0,50,0,0,0]; % Define setpoint signal. We want the rocket to go to this pose
+
 % Here, we comupute the gain matricies for the augmented state space model
 [F, Phi, BarRs, Phi_Phi, Phi_F, Phi_R, A_e, B_e, C_e] = mimompcgain(Ad, Bd, Cd, Nc, Np, rs); % MIMO
 [n, n_in] = size(B_e); % define some useful dimensions
 
-xm = [-50;0;100;0;0;0]; % inital state variable for the plant
+xm = [50;0;100;0;0;0]; % inital state variable for the plant
 y = xm; % inital output is equal to the initial state
 Xf = zeros(n,1); % inital state feedback variable
-t_end = 300;
+t_end = 60;
 N_sim = t_end/Delta_t; % define number of time steps to run
 r = ones(N_sim,1)*rs; % setpoint we want the controller to get to
 u = 0; % u(k-1) = 0 the initial control signal
@@ -152,27 +151,27 @@ xlabel('sampling instant')
 grid on
 
 % % Animation Plots
-% figure(2)
-% zout = y1';
-% for time=1:N_sim
-%     rocketTop = [zout(time, 1) + (L/2)*sin(-zout(time, 5)), zout(time, 3) + (L/2)*cos(-zout(time, 5))];
-%     rocketBot = [zout(time, 1) - (L/2)*sin(-zout(time, 5)), zout(time, 3) - (L/2)*cos(-zout(time, 5))];
-% %     Plots the ground
-%     plot([-10 10],[0 0],'k','LineWidth',2), hold on
-% %     plots the rocket
-%     scatter([rocketBot(1),rocketTop(1)], [rocketBot(2),rocketTop(2)],[],[1,0,0; 0,0,0]); 
-%     plot([rocketBot(1),rocketTop(1)], [rocketBot(2),rocketTop(2)],'k', 'LineWidth', 2); 
-%     
-% %     Plot thrust vector
-% %     u = K*zout(time,:)';
-% %     u1 = u(1);
-% %     u2 = u(2);
-% %     dp = u1*[sin(-zout(time, 5)-u2), cos(-zout(time, 5)-u2)];
-% %     quiver(rocketBot(1),rocketBot(2),dp(1),dp(2))
-% %     set some window params
-%     axis([-2 2 -2 120]); axis equal
-%     grid on
-%     set(gcf,'Position',[100 100 1000 400])
-%     drawnow limitrate, hold off
-%     
-% end
+figure(2)
+zout = y1';
+for time=1:N_sim
+    rocketTop = [zout(time, 1) + (L/2)*sin(-zout(time, 5)), zout(time, 3) + (L/2)*cos(-zout(time, 5))];
+    rocketBot = [zout(time, 1) - (L/2)*sin(-zout(time, 5)), zout(time, 3) - (L/2)*cos(-zout(time, 5))];
+%     Plots the ground
+    plot([-10 10],[0 0],'k','LineWidth',2), hold on
+%     plots the rocket
+    scatter([rocketBot(1),rocketTop(1)], [rocketBot(2),rocketTop(2)],[],[1,0,0; 0,0,0]); 
+    plot([rocketBot(1),rocketTop(1)], [rocketBot(2),rocketTop(2)],'k', 'LineWidth', 2); 
+    
+%     Plot thrust vector
+%     u = K*zout(time,:)';
+%     u1 = u(1);
+%     u2 = u(2);
+%     dp = u1*[sin(-zout(time, 5)-u2), cos(-zout(time, 5)-u2)];
+%     quiver(rocketBot(1),rocketBot(2),dp(1),dp(2))
+%     set some window params
+    axis([-2 2 -2 120]); axis equal
+    grid on
+    set(gcf,'Position',[100 100 1000 400])
+    drawnow limitrate, hold off
+    
+end
