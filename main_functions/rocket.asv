@@ -69,6 +69,10 @@ rank(obsv(A,C)) % if rank is 6, you can observe the full system
 % sys = ss(A,B,C,D);
 % det(gram(sys, 'o'));
 
+% Build an augmented system for kalman filter
+
+Vd = 0.1*eye(6); % define the disturbance noise
+
 % eigval = [-1.5; -5.6; -4.7; -3.8; -2.6; -1.7];
 % K = place(A, B, eigval);
 

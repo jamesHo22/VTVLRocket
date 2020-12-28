@@ -53,6 +53,13 @@ Bc = [0 0;
  
 % output C matrix. Assuming full state feedback for the sake of simplicity.
 % Will eventually use a kalman filter to estimate this from sensors
+Cc = [0 0 0 0 0 0;
+      0 1 0 0 0 0;
+      0 0 0 0 0 0;
+      0 0 0 1 0 0;
+      0 0 0 0 0 0;
+      0 0 0 0 0 1;];
+  
 Cc = eye(6);
 
 % Feed through matrix D. Is zero because we assume that the current input
@@ -151,27 +158,27 @@ xlabel('sampling instant')
 grid on
 
 % % Animation Plots
-figure(2)
-zout = y1';
-for time=1:N_sim
-    rocketTop = [zout(time, 1) + (L/2)*sin(-zout(time, 5)), zout(time, 3) + (L/2)*cos(-zout(time, 5))];
-    rocketBot = [zout(time, 1) - (L/2)*sin(-zout(time, 5)), zout(time, 3) - (L/2)*cos(-zout(time, 5))];
-%     Plots the ground
-    plot([-10 10],[0 0],'k','LineWidth',2), hold on
-%     plots the rocket
-    scatter([rocketBot(1),rocketTop(1)], [rocketBot(2),rocketTop(2)],[],[1,0,0; 0,0,0]); 
-    plot([rocketBot(1),rocketTop(1)], [rocketBot(2),rocketTop(2)],'k', 'LineWidth', 2); 
-    
-%     Plot thrust vector
-%     u = K*zout(time,:)';
-%     u1 = u(1);
-%     u2 = u(2);
-%     dp = u1*[sin(-zout(time, 5)-u2), cos(-zout(time, 5)-u2)];
-%     quiver(rocketBot(1),rocketBot(2),dp(1),dp(2))
-%     set some window params
-    axis([-2 2 -2 120]); axis equal
-    grid on
-    set(gcf,'Position',[100 100 1000 400])
-    drawnow limitrate, hold off
-    
-end
+% figure(2)
+% zout = y1';
+% for time=1:N_sim
+%     rocketTop = [zout(time, 1) + (L/2)*sin(-zout(time, 5)), zout(time, 3) + (L/2)*cos(-zout(time, 5))];
+%     rocketBot = [zout(time, 1) - (L/2)*sin(-zout(time, 5)), zout(time, 3) - (L/2)*cos(-zout(time, 5))];
+% %     Plots the ground
+%     plot([-10 10],[0 0],'k','LineWidth',2), hold on
+% %     plots the rocket
+%     scatter([rocketBot(1),rocketTop(1)], [rocketBot(2),rocketTop(2)],[],[1,0,0; 0,0,0]); 
+%     plot([rocketBot(1),rocketTop(1)], [rocketBot(2),rocketTop(2)],'k', 'LineWidth', 2); 
+%     
+% %     Plot thrust vector
+% %     u = K*zout(time,:)';
+% %     u1 = u(1);
+% %     u2 = u(2);
+% %     dp = u1*[sin(-zout(time, 5)-u2), cos(-zout(time, 5)-u2)];
+% %     quiver(rocketBot(1),rocketBot(2),dp(1),dp(2))
+% %     set some window params
+%     axis([-2 2 -2 120]); axis equal
+%     grid on
+%     set(gcf,'Position',[100 100 1000 400])
+%     drawnow limitrate, hold off
+%     
+% end

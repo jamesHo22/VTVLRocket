@@ -1,6 +1,9 @@
-function rocket
+function rocketLQG
 clear all
 close all
+
+% rocket.m but only controlling velocities. Don't care about absolute
+% position. Implementation of LQG controller.
 
 % Define system parameters
 %
@@ -31,37 +34,33 @@ df6du2 = (-L*cos(angled))/(2*I);
 
 % Linearized A matrix. Is not a good representation because eigs of A are
 % zero. 
-A = [0 1 0 0 0 0; 
-     0 0 0 0 df2dz5 0;
-     0 0 0 1 0 0;
-     0 0 0 0 df4dz5 0;
-     0 0 0 0 0 1;
-     0 0 0 0 0 0];
+ 
+A = [0 0 df2dz5 0;
+     0 0 df4dz5 0;
+     0 0 0 1;
+     0 0 0 0];
  
 % Linearized B matrix
-B = [0 0;
-     df2du1 df2du2;
-     0 0;
+ 
+B = [df2du1 df2du2;
      df4du1 df4du2;
      0 0;
      df6du1 df6du2];
-
+ 
 % Output observability matrix. States the "sensors" can observe
-C = [1 0 0 0 0 0; 
-     0 1 0 0 0 0;
-     0 0 1 0 0 0;
-     0 0 0 1 0 0;
-     0 0 0 0 1 0;
-     0 0 0 0 0 1;];
+C = [1 0 0 0; 
+     0 1 0 0;
+     0 0 0 0;
+     0 0 0 0];
 
 % Feedthrough matrix 
 D = zeros(size(B));
  
 % Check how controllable the system is
-rank(ctrb(A,B)) % if the rank is 6, it is fully controllable
+rank(ctrb(A,B)) % if the rank is 4, it is fully controllable
 
 % Check how observable the system is
-rank(obsv(A,C)) % if rank is 6, you can observe the full system
+rank(obsv(A,C)) % if rank is 4, you can observe the full system
 
 % Compute how observable a sensor combination is. Cannot compute gramion in
 % this case because of unstable dynamics
@@ -69,8 +68,70 @@ rank(obsv(A,C)) % if rank is 6, you can observe the full system
 % sys = ss(A,B,C,D);
 % det(gram(sys, 'o'));
 
+%%
+% Build an augmented system for kalman filter
+
+Vd = 0.1*eye(4); % define the disturbance covariance
+Vn = eye(size(A)); % noise covariance
+
+zeroU = zeros(size(B));
+zeroD = zeros(size(A));
+
+BF = [B Vd 0*A]; % augmented matrix with input disturbance and sensor noise
+DF = [zeroU zeroD Vn];
+sysC = ss(A, BF, C, DF);
+
+systemFullOutput = ss(A, BF, eye(4), zeros(size(DF))); % simulate the full system with full state feedback
+
+% Build a kalman filter
+
+% [Kfe, P, E] = lqe(A, eye(4), C, Vd, Vn);
+[Kfe, P, E] = lqe(A, Vd, C, Vd, Vn);
+% Kf and Kfe is the kalman filter gain matrix
+
+% You can also use the LQR command
+Kf = (lqr(A', C', Vd, Vn))';
+
+sysKF = ss(A-Kfe*C, [B Kfe], eye(4), 0*[B Kfe]);
+
+%%
+% Simulate the system
+
+dt = 0.01;
+t = dt:dt:50;
+uDIST = randn(4,size(t,2));
+uNOISE = randn(4,size(t,2));
+u_sim = zeros(2, size(t,2));
+u_sim(1, 100:420) = 10;
+u_sim(2, 150:420) = 10;
+u_sim(1, 1500:1820) = -10;
+
+uAUG = [u_sim; Vd*Vd*uDIST; uNOISE];
+% simulate and plot the measurement from the sensors with noise
+[y, t] = lsim(sysC, uAUG, t);
+plot(t, y(:,2))
+
+
+% simulate and plot the true system
+[xtrue, t] = lsim(systemFullOutput, uAUG, t);
+hold on
+plot(t, xtrue(:,2), 'r', 'LineWidth', 2.0)
+
+% simulate and plot the kalman system 
+[x_kalman, t] = lsim(sysKF, [u_sim; y'], t);
+plot(t, x_kalman(:,2), 'k--', 'LineWidth', 2.0)
+
+% plot all states
+figure
+plot(t, xtrue, '-', t, x_kalman, '--', 'LineWidth', 1.0)
+legend('x dot', 'y dot', 'theta', 'theta dot', 'x dot k', 'y dot k', 'theta k', 'theta dot k')
+
+%%
+
 % eigval = [-1.5; -5.6; -4.7; -3.8; -2.6; -1.7];
 % K = place(A, B, eigval);
+
+
 
 % Using LQR
 Q = [100 0 0 0 0 0;
@@ -174,7 +235,7 @@ end
 function [eventvalue,stopthecalc,eventdirection] = event_stop(T,Z)
      
  % stop when Z(3)= z3= y = 0 (mass hits the ground in y-dir)
-        eventvalue      =  Z(3);    %  ‘Events’ are detected when eventvalue=0
+        eventvalue      =  Z(3);    %  Â‘EventsÂ’ are detected when eventvalue=0
         stopthecalc     =  1;       %  Stop if event occurs
         eventdirection  = -1;       %  Detect only events with dydt<0
 end
